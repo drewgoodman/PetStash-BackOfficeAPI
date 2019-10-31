@@ -27,7 +27,7 @@ def is_admin_logged_in(f):
             return f(*args, **kwargs)
         else:
             flash("Unauthorized, please login", "danger")
-            return redirect(url_for("login"))
+            return redirect(url_for("admin_login"))
     return wrap
 
 
@@ -67,7 +67,7 @@ def admin_register():
     if request.method == 'POST' and form.username.data in current_user_list:
         flash('That username has already been taken.', 'danger')
     elif request.method == 'POST' and form.validate():
-        
+
         firstname = form.firstname.data
         lastname = form.lastname.data
         username = form.username.data
@@ -164,7 +164,7 @@ def category_add():
 @is_admin_logged_in
 def category_edit(id):
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT* FROM shop_categories WHERE shop_category_id = %s", [id])
+    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_id = %s", [id])
     category = cur.fetchone()
     form = CategoryForm(request.form)
     
@@ -182,7 +182,10 @@ def category_edit(id):
 @app.route("/products")
 def products():
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * FROM shop_products")
+    result = cur.execute("""SELECT p.id, p.shop_product_name, p.shop_product_brand, p.shop_product_price, p.shop_product_display, p.shop_product_onhand, c.shop_category_name
+                            FROM shop_products p
+                            JOIN shop_categories c
+                            ON c.shop_category_id = p.shop_product_category_id""")
     products = cur.fetchall()
     return render_template('products.html', products=products)
 
@@ -196,32 +199,40 @@ class ProductForm(Form):
     description = TextAreaField('Product Description', [validators.Length(max=255)])
     dropdown_list = [("1",'Active'),("0",'Hidden')]
     display = SelectField('Display Status', choices=dropdown_list)
-    category = SelectField('Product Category', choices=[], coerce=int)
+    category = SelectField('Primary Category', choices=[], coerce=int)
+
+
+def product_category_options():
+    # populates the dropdown menu for primary category choices
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_categories")
+    categories = cur.fetchall()
+    category_list = [(-1,"None")]
+    for category in categories:
+        category_list.append((category["shop_category_id"], category["shop_category_name"]))
+    cur.close()
+    return category_list
+
+def product_category_parse(category_data):
+    # for return a Null value if no primary category is set
+    if category_data == -1:
+        return None
+    else:
+        return int(category_data)
 
 
 @app.route('/product-add', methods=["GET","POST"])
 @is_admin_logged_in
 def product_add():
     form = ProductForm(request.form)
-    cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * FROM shop_categories")
-    categories = cur.fetchall()
-    category_list = [(-1,"None")]
-
-    for category in categories:
-        category_list.append((category["shop_category_id"], category["shop_category_name"]))
-    form.category.choices = category_list
-
+    form.category.choices = product_category_options()
     if request.method == "POST" and form.validate():
         name = form.name.data
         price = form.price.data
         brand = form.brand.data
         image_url = form.image_url.data
         description = form.description.data
-        if form.category.data == -1:
-            category = None
-        else:
-            category = int(form.category.data)
+        category = product_category_parse(form.category.data)
         display = int(form.display.data)
         cur = mysql.connection.cursor()
         cur.execute("INSERT INTO shop_products(shop_product_name, shop_product_brand, shop_product_price, shop_product_image_url, shop_product_description, shop_product_category_id, shop_product_display) VALUES(%s, %s, %s, %s, %s, %s, %s)",(name, brand, price, image_url, description, category, display))
@@ -235,17 +246,36 @@ def product_add():
     return render_template('product_add.html', form=form)
 
 
+@app.route('/product-edit/<string:id>', methods=["GET","POST"])
+@is_admin_logged_in
+def product_edit(id):
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_products WHERE id = %s", [id])
+    product = cur.fetchone()
+    form = ProductForm(request.form)
+    form.category.choices = product_category_options()
+    
+    form.name.data = product["shop_product_name"]
+    form.price.data =  product["shop_product_price"]
+    form.brand.data =  product["shop_product_brand"]
+    form.image_url.data = product["shop_product_image_url"]
+    form.description.data = product["shop_product_description"]
+    form.category.data = product["shop_product_category_id"]
+    form.display.data = product["shop_product_display"]
+
+
+    return render_template("product_edit.html", form=form)
+
+
+
+
+
 @app.route('/logout')
 @is_admin_logged_in
 def logout():
     session.clear()
     flash('You are now logged out.',"success")
     return redirect(url_for('home'))
-
-
-
-
-
 
 
 if __name__ == "__main__":

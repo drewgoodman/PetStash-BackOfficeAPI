@@ -1,0 +1,34 @@
+{% extends 'index.html' %}
+
+{% block body %}
+    <h1>Edit Product</h1>
+    <hr>
+    {% from "components/formComponents.html" import render_field %}
+    <form method="POST" action="">
+        <div class="form-group">
+            {{render_field(form.name, class_="form-control")}}
+        </div>
+        <div class="form-group">
+            {{render_field(form.brand, class_="form-control")}}
+        </div>
+        <div class="form-group">
+            {{render_field(form.price, class_="form-control")}}
+        </div>
+        <br>
+        <div class="form-group">
+            {{render_field(form.image_url, class_="form-control")}}
+        </div>
+        <div class="form-group">
+            {{render_field(form.description, class_="form-control")}}
+        </div>
+        <br>
+        <div class="form-group">
+            {{render_field(form.category, class_="form-control")}}
+        </div>
+        <div class="form-group">
+            {{render_field(form.display, class_="form-control")}}
+        </div>
+        <p><input type="submit" class="btn btn-primary" value="Commit Product Changes">
+        </p>
+    </form>
+{% endblock %}
