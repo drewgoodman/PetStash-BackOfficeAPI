@@ -167,15 +167,40 @@ def category_edit(id):
     result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_id = %s", [id])
     category = cur.fetchone()
     form = CategoryForm(request.form)
-    
     form.name.data = category["shop_category_name"]
-    form.display.data = category["shop_category_display"]
+    form.display.data = str(category["shop_category_display"])
     form.route.data =  category["shop_category_route"]
     form.icon_url.data = category["shop_category_icon_url"]
     form.banner_url.data = category["shop_category_banner_url"]
-    form.banner_display.data = category["shop_category_banner_display"]
+    form.banner_display.data = str(category["shop_category_banner_display"])
     form.banner_button.data = category["shop_category_banner_button"]
     form.banner_caption.data = category["shop_category_banner_caption"]
+    if request.method == "POST" and form.validate():
+        name = request.form['name']
+        display = int(request.form['display'])
+        route = request.form['route']
+        icon_url = request.form['icon_url']
+        banner_url = request.form['banner_url']
+        banner_display = request.form['banner_display']
+        banner_button = request.form['banner_button']
+        banner_caption = request.form['banner_caption']
+        cur.execute("""UPDATE shop_categories
+                        SET shop_category_name = %s,
+                        shop_category_display = %s,
+                        shop_category_route = %s,
+                        shop_category_icon_url = %s,
+                        shop_category_banner_url = %s,
+                        shop_category_banner_display = %s,
+                        shop_category_banner_button = %s,
+                        shop_category_banner_caption = %s
+                        WHERE shop_category_id = %s""", (name, display, route, icon_url, banner_url, banner_display, banner_button, banner_caption, id))
+        mysql.connection.commit()
+        log_message = f"Updated product category: {name}."
+        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
+        mysql.connection.commit()
+        cur.close()
+        flash("Category Successfully Added", 'success')
+        return redirect(url_for("categories"))
     return render_template("category_edit.html", form=form)
 
 
@@ -254,14 +279,41 @@ def product_edit(id):
     product = cur.fetchone()
     form = ProductForm(request.form)
     form.category.choices = product_category_options()
-    
     form.name.data = product["shop_product_name"]
     form.price.data =  product["shop_product_price"]
     form.brand.data =  product["shop_product_brand"]
     form.image_url.data = product["shop_product_image_url"]
     form.description.data = product["shop_product_description"]
     form.category.data = product["shop_product_category_id"]
-    form.display.data = product["shop_product_display"]
+    form.display.data = str(product["shop_product_display"])
+    
+    if request.method == "POST" and form.validate():
+        name = request.form['name']
+        price = request.form['price']
+        brand = request.form['brand']
+        image_url = request.form['image_url']
+        description = request.form['description']
+        category = product_category_parse(request.form['category'])
+        display = int(request.form['display'])
+        cur = mysql.connection.cursor()
+        cur.execute("""UPDATE shop_products
+                    SET shop_product_name = %s,
+                    shop_product_brand = %s,
+                    shop_product_price = %s,
+                    shop_product_image_url = %s,
+                    shop_product_description = %s,
+                    shop_product_category_id = %s,
+                    shop_product_display = %s
+                    WHERE id = %s""",
+                    (name, brand, price, image_url, description, category, display, id))
+        mysql.connection.commit()
+        
+        log_message = f"Successfully updated product: {name} by {brand}."
+        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
+        mysql.connection.commit()
+        cur.close()
+        flash("Product Successfully Updated", 'success')
+        return redirect(url_for("products"))
 
 
     return render_template("product_edit.html", form=form)
