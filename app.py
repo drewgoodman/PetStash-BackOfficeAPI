@@ -74,7 +74,13 @@ def admin_register():
         employee_id = form.employee_id.data
         password = sha256_crypt.hash(str(form.password.data))
         cur = mysql.connection.cursor() 
-        cur.execute("INSERT INTO admin_user(admin_user_firstname, admin_user_lastname, admin_user_employee_id, admin_user_username, admin_user_password) VALUES(%s, %s, %s, %s, %s)", (firstname, lastname, employee_id, username, password))
+        cur.execute("""INSERT INTO admin_user(
+                            admin_user_firstname,
+                            admin_user_lastname, 
+                            admin_user_employee_id, 
+                            admin_user_username, 
+                            admin_user_password
+                            ) VALUES(%s, %s, %s, %s, %s)""", (firstname, lastname, employee_id, username, password))
         mysql.connection.commit()
 
         result = cur.execute("SELECT * FROM admin_user WHERE admin_user_username = %s", [username])
@@ -149,7 +155,17 @@ def category_add():
         banner_button = form.banner_button.data
         banner_caption = form.banner_caption.data
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO shop_categories(shop_category_name, shop_category_display, shop_category_route, shop_category_icon_url, shop_category_banner_url, shop_category_banner_display, shop_category_banner_button, shop_category_banner_caption) VALUES(%s, %s, %s, %s, %s, %s, %s, %s)",(name, display, route, icon_url, banner_url, banner_display, banner_button, banner_caption))
+        cur.execute("""INSERT INTO shop_categories(
+                        shop_category_name, 
+                        shop_category_display, 
+                        shop_category_route, 
+                        shop_category_icon_url, 
+                        shop_category_banner_url, 
+                        shop_category_banner_display, 
+                        shop_category_banner_button, 
+                        shop_category_banner_caption
+                        ) VALUES(%s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (name, display, route, icon_url, banner_url, banner_display, banner_button, banner_caption))
         mysql.connection.commit()
         log_message = f"Created new product category: {name}."
         cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
@@ -209,7 +225,7 @@ def products():
     cur = mysql.connection.cursor()
     result = cur.execute("""SELECT p.id, p.shop_product_name, p.shop_product_brand, p.shop_product_price, p.shop_product_display, p.shop_product_onhand, c.shop_category_name
                             FROM shop_products p
-                            JOIN shop_categories c
+                            LEFT JOIN shop_categories c
                             ON c.shop_category_id = p.shop_product_category_id""")
     products = cur.fetchall()
     return render_template('products.html', products=products)
@@ -232,14 +248,17 @@ def product_category_options():
     cur = mysql.connection.cursor()
     result = cur.execute("SELECT * FROM shop_categories")
     categories = cur.fetchall()
-    category_list = [(-1,"None")]
-    for category in categories:
-        category_list.append((category["shop_category_id"], category["shop_category_name"]))
+    category_list = []
+    if result == 0:
+        category_list = [(-1,"None")]
+    else:
+        for category in categories:
+            category_list.append((category["shop_category_id"], category["shop_category_name"]))
     cur.close()
     return category_list
 
 def product_category_parse(category_data):
-    # for return a Null value if no primary category is set
+    # for return a Null value if no primary category is set, just to catch errors before categories are created.
     if category_data == -1:
         return None
     else:
@@ -260,7 +279,16 @@ def product_add():
         category = product_category_parse(form.category.data)
         display = int(form.display.data)
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO shop_products(shop_product_name, shop_product_brand, shop_product_price, shop_product_image_url, shop_product_description, shop_product_category_id, shop_product_display) VALUES(%s, %s, %s, %s, %s, %s, %s)",(name, brand, price, image_url, description, category, display))
+        cur.execute("""INSERT INTO shop_products(
+                        shop_product_name,
+                        shop_product_brand, 
+                        shop_product_price, 
+                        shop_product_image_url, 
+                        shop_product_description, 
+                        shop_product_category_id, 
+                        shop_product_display
+                        ) VALUES(%s, %s, %s, %s, %s, %s, %s)""",
+                        (name, brand, price, image_url, description, category, display))
         mysql.connection.commit()
         log_message = f"Successfully added new product: {name} by {brand}."
         cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
@@ -284,9 +312,9 @@ def product_edit(id):
     form.brand.data =  product["shop_product_brand"]
     form.image_url.data = product["shop_product_image_url"]
     form.description.data = product["shop_product_description"]
-    form.category.data = product["shop_product_category_id"]
+    if product["shop_product_category_id"]:
+        form.category.data = product_category_parse(product["shop_product_category_id"])
     form.display.data = str(product["shop_product_display"])
-    
     if request.method == "POST" and form.validate():
         name = request.form['name']
         price = request.form['price']
@@ -307,7 +335,7 @@ def product_edit(id):
                     WHERE id = %s""",
                     (name, brand, price, image_url, description, category, display, id))
         mysql.connection.commit()
-        
+
         log_message = f"Successfully updated product: {name} by {brand}."
         cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
         mysql.connection.commit()
