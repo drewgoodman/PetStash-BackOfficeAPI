@@ -1,0 +1,47 @@
+{% extends 'index.html' %}
+
+{% block body %}
+<h1>Product Categories</h1>
+<hr>
+<table class="table table-striped">
+    <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Route Name</th>
+        <th></th>
+        <th></th>
+    </tr>
+    <tr>
+        <td>All</td>
+        <td>Active</td>
+        <td>all</td>
+    </tr>
+{% for category in categories %}
+    <tr>
+        <td>{{category.shop_category_name}}</td>
+        {% if category.shop_category_display == 0 %}
+            <td>Hidden</td>
+        {% else %}
+            <td>Active</td>
+        {% endif %}
+        <td>{{category.shop_category_route}}</td>
+        <td>
+            <a href="/category-edit/{{category.shop_category_id}}" class="btn btn-success">Edit</a>
+        </td>
+        <td>
+            <a href="#" class="btn btn-danger">Delete</a>
+        </td>
+    </tr>
+{% endfor %}
+{% if session.admin_logged_in %}
+    <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td><a href="/category-add" class="btn btn-primary">Add</a></td>
+            <td></td>
+    </tr>
+{% endif %}
+</table>
+
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'index.html' %}
+
+{% block body %}
+<br>
+<div class="jumbotron text-center">
+        <h1 class="brand-title">PetStash Supply Co.</h1>
+        <h3><< Back Office Terminal >></h3>
+        <br><br>
+        <hr>
+        <p class="lead">For use by authorized managers of PetStash Supply Co.</p>
+        {% if session.admin_logged_in %}
+
+        {% else %}
+        <a href="/register" class="btn btn-primary btn-lg">Register</a>
+        <a href="/login" class="btn btn-primary btn-lg">Login</a>
+        {% endif %}
+</div>
+{% if updates %}
+    <table class="table table-striped">
+        <tr>
+            <th>Date</th>
+            <th>Log</th>
+            <th>User</th>
+        </tr>
+        {% for update in updates %}
+            <tr>
+                <td>{{update.admin_updatelog_timestamp}}</td>
+                <td>{{update.admin_updatelog_log}}</td>
+                <td>{{update.admin_updatelog_admin}}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+<p class="text-center">No recent updates.</p>
+{% endif %}
+{% endblock %}
