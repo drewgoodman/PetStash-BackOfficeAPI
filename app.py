@@ -4,17 +4,18 @@ from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, SelectField, PasswordField, DecimalField, IntegerField, FieldList, FormField, validators
 from passlib.hash import sha256_crypt
 from functools import wraps
-import config
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-app.config['MYSQL_HOST'] = config.api_host
-app.config['MYSQL_USER'] = config.api_user
-app.config['MYSQL_PASSWORD'] = config.api_password
-app.config['MYSQL_DB'] = config.api_db
+
+app.config['MYSQL_HOST'] = os.environ.get('API_HOST')
+app.config['MYSQL_USER'] = os.environ.get('API_USER')
+app.config['MYSQL_PASSWORD'] = os.environ.get('API_PASSWORD')
+app.config['MYSQL_DB'] = os.environ.get('API_DB')
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
-app.config['SECRET_KEY'] = config.api_secret_key
+app.config['SECRET_KEY'] = os.environ.get('API_SECRET_KEY')
 
 
 mysql = MySQL(app)
