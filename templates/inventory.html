@@ -1,0 +1,41 @@
+{% extends 'index.html' %}
+
+{% block body %}
+<h1>Inventory Order Review</h1>
+<hr>
+{% from "components/formComponents.html" import render_field %}
+<form method="POST" action="">
+    <p><input type="submit" class="btn btn-primary" value="Update On Hand Counts">
+    </p>
+    <table class="table table-hover">
+        <thead class="thead-dark">
+            <th>Product</th>
+            <th>ID No.</th>
+            <th>Current OH</th>
+            <th>New OH</th>
+        </thead>
+        <tbody>
+            {% for product_form in form.inventory_list %}
+            <tr>
+                <td>
+                    {{product_form.product_name.data}}
+                </td>
+                <td>
+                    <div class="d-none">
+                        {{product_form.product_id}}
+                    </div>
+                    {{product_form.product_id.data}}
+                </td>
+                <td>
+                    {{product_form.onhand.data}}
+                </td>
+                <td>
+                    {{product_form.onhand}}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+</form>
+{% endblock %}

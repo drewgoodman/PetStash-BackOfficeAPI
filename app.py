@@ -1,7 +1,7 @@
 from flask import Flask, render_template, flash, redirect, url_for, session, request, jsonify
 from flask_cors import CORS
 from flask_mysqldb import MySQL
-from wtforms import Form, StringField, TextAreaField, SelectField, PasswordField, DecimalField, validators
+from wtforms import Form, StringField, TextAreaField, SelectField, PasswordField, DecimalField, IntegerField, FieldList, FormField, validators
 from passlib.hash import sha256_crypt
 from functools import wraps
 import config
@@ -18,6 +18,8 @@ app.config['SECRET_KEY'] = config.api_secret_key
 
 
 mysql = MySQL(app)
+
+PRODUCT_ORDER_DEFAULT = " shop_product_category_id, shop_product_name"
 
 
 def is_admin_logged_in(f):
@@ -226,7 +228,8 @@ def products():
     result = cur.execute("""SELECT p.id, p.shop_product_name, p.shop_product_brand, p.shop_product_price, p.shop_product_display, p.shop_product_onhand, c.shop_category_name
                             FROM shop_products p
                             LEFT JOIN shop_categories c
-                            ON c.shop_category_id = p.shop_product_category_id""")
+                            ON c.shop_category_id = p.shop_product_category_id
+                            ORDER BY """ + PRODUCT_ORDER_DEFAULT)
     products = cur.fetchall()
     return render_template('products.html', products=products)
 
@@ -342,9 +345,50 @@ def product_edit(id):
         cur.close()
         flash("Product Successfully Updated", 'success')
         return redirect(url_for("products"))
-
-
     return render_template("product_edit.html", form=form)
+
+
+class InventoryEntryForm(Form):
+    product_name = StringField('name')
+    product_id = IntegerField('product_id')
+    onhand = IntegerField('Update Onhand', [validators.NumberRange(min=0)])
+
+class InventoryListForm(Form):
+    inventory_list = FieldList(FormField(InventoryEntryForm))
+
+
+@app.route('/inventory', methods=["GET","POST"])
+@is_admin_logged_in
+def receive_order():
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT shop_product_name, id, shop_product_onhand FROM shop_products ORDER BY " + PRODUCT_ORDER_DEFAULT)
+    products = cur.fetchall()
+    inventory_form = InventoryListForm(request.form)
+    if request.method == "POST" and inventory_form.validate():
+        for update in inventory_form.inventory_list:
+            product_id = update.product_id.data
+            onhand = update.onhand.data
+            print(update.product_name.data,product_id,onhand)
+            cur.execute("""UPDATE shop_products
+                        SET shop_product_onhand = %s
+                        WHERE id = %s""", (onhand, product_id))
+            mysql.connection.commit()
+        flash("Inventory successfully updated","success")
+        return redirect(url_for("home"))
+    elif request.method == "POST":
+        flash("Can only accept numeric edits above 0.","danger")
+        return redirect(url_for("receive_order"))
+    if result > 0:
+        for product in products:
+            product_form = InventoryEntryForm()
+            product_form.product_name = product['shop_product_name']
+            product_form.product_id = product['id']
+            product_form.onhand = product['shop_product_onhand']
+            inventory_form.inventory_list.append_entry(product_form)
+        return render_template("inventory.html", form=inventory_form)
+    else:
+        flash("No products found", "danger")
+        return redirect(url_for("home"))
 
 
 
