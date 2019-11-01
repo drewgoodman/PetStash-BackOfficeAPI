@@ -4,12 +4,28 @@ from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, SelectField, PasswordField, DecimalField, IntegerField, FieldList, FormField, validators
 from passlib.hash import sha256_crypt
 from functools import wraps
+
+from dotenv import load_dotenv
 import os
 
+
+import decimal
+import flask.json
+
+class CustomJSONEncoder(flask.json.JSONEncoder):
+    # To make sure that decimals get converted to strings before JSON'd
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return str(obj)
+        return super(CustomJSONEncoder, self).default(obj)
+
+
+
 app = Flask(__name__)
-CORS(app)
+CORS(app) # allow for cross-site requests from the storefront
+app.json_encoder = CustomJSONEncoder
 
-
+load_dotenv()
 app.config['MYSQL_HOST'] = os.environ.get('API_HOST')
 app.config['MYSQL_USER'] = os.environ.get('API_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('API_PASSWORD')
@@ -70,7 +86,6 @@ def admin_register():
     if request.method == 'POST' and form.username.data in current_user_list:
         flash('That username has already been taken.', 'danger')
     elif request.method == 'POST' and form.validate():
-
         firstname = form.firstname.data
         lastname = form.lastname.data
         username = form.username.data
@@ -91,7 +106,6 @@ def admin_register():
         admin_id = data['admin_user_id']
         log_message = f"Registered {username} (Employee #{employee_id}) in PetStash Back Office."
         cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, admin_id, username))
-
         mysql.connection.commit()
         cur.close()
         flash('You are now registered and can log in', 'success')
@@ -222,6 +236,8 @@ def category_edit(id):
         return redirect(url_for("categories"))
     return render_template("category_edit.html", form=form)
 
+#TODO: BUILD CATEGORY DELETE --- How to handle product reassignment?
+
 
 @app.route("/products")
 def products():
@@ -348,6 +364,8 @@ def product_edit(id):
         return redirect(url_for("products"))
     return render_template("product_edit.html", form=form)
 
+#TODO: BUILD DELETE PRODUCT
+
 
 class InventoryEntryForm(Form):
     product_name = StringField('name')
@@ -392,15 +410,61 @@ def receive_order():
         return redirect(url_for("home"))
 
 
-
-
-
 @app.route('/logout')
 @is_admin_logged_in
 def logout():
     session.clear()
     flash('You are now logged out.',"success")
     return redirect(url_for('home'))
+
+
+
+# GET ALL CATEGORIES -- Return all categories that are active
+@app.route('/store/get-categories')
+def front_get_all_categories():
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_display = 1")
+    categories = cur.fetchall()
+    cur.close()
+    return jsonify(categories)
+
+
+# GET ALL PRODUCTS -- Return all products that are active
+@app.route('/store/get-products')
+def front_get_all_products():
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_products WHERE shop_product_display = 1")
+    products = cur.fetchall()
+    cur.close()
+    return jsonify(products)
+
+
+# GET PRODUCTS BY CATEGORY  -- Returns all products in the category that are active, using the category URL route -- category assumed active already
+@app.route('/store/get-products/<string:route>')
+def front_get_products_by_category(route):
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s",[route])
+    category = cur.fetchone()
+    category_id = category["shop_category_id"]
+    result = cur.execute("SELECT * FROM shop_products WHERE shop_product_display = 1 AND shop_product_category_id = %s",[category_id])
+    products = cur.fetchall()
+    cur.close()
+    return jsonify(products)
+
+
+# TODO: BUILD USER REGISTRATION
+
+# TODO: BUILD USER LOGIN
+
+# TODO: BUILD USER LOGOUT
+
+
+# TODO: CHECK ANY DECIMAL DATA --- IT MAY NEED TO BE SENT BACK AS A STRING AND CONVERTED INTO A DECIMAL AFTERWARDS. CANNOT USE AS JSON DATA, ENCODER OVERRIDE HOPEFULLY FIXES THIS.
+
+
+
+
+
 
 
 if __name__ == "__main__":
