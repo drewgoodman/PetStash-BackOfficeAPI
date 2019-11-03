@@ -520,12 +520,48 @@ def front_register_user():
             "registerSuccess": True
         }
 
+@app.route('/store/login-status')
+def front_check_login_status():
+    if 'user_logged_in' in session:
+        return { "loginStatus": True }
+    else:
+        return { "loginStatus": False }
 
 
+@app.route('/store/login', methods=["POST"])
+def front_login_user():
+    username = request.json['username']
+    password_input = request.json['password']
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_users WHERE user_username = %s", [username])
+    if result > 0:
+        user = cur.fetchone()
+        password = user["user_password"]
+        if sha256_crypt.verify(password_input, password):
+            session['user_logged_in'] = True
+            session['user_id'] = user["user_id"]
+            session['user_username'] = user["user_username"]
+            return {
+                "loginStatus": True
+            }
+        else:
+            return {
+                "loginStatus": False,
+                "errorText": "Invalid password. Please try again."
+            }
 
-# TODO: BUILD USER LOGIN
+    else:
+        return {
+            "loginStatus": False,
+            "errorText": "Invalid username. Please try again."
+        }
 
-# TODO: BUILD USER LOGOUT
+
+@app.route('/store/logout')
+def front_logout_user():
+    session.clear()
+    return { "logoutSuccessful": True }
+
 
 
 # TODO: CHECK ANY DECIMAL DATA --- IT MAY NEED TO BE SENT BACK AS A STRING AND CONVERTED INTO A DECIMAL AFTERWARDS. CANNOT USE AS JSON DATA, ENCODER OVERRIDE HOPEFULLY FIXES THIS.
