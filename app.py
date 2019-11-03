@@ -20,7 +20,7 @@ class CustomJSONEncoder(flask.json.JSONEncoder):
 
 
 app = Flask(__name__)
-CORS(app) # allow for cross-site requests from the storefront
+CORS(app, supports_credentials=True) # allow for cross-site requests from the storefront
 app.json_encoder = CustomJSONEncoder
 
 load_dotenv() # to use local env variables when building
@@ -471,9 +471,6 @@ def front_get_products_by_category(route):
     products = cur.fetchall()
     cur.close()
     return jsonify(products)
-
-
-# TODO: BUILD USER REGISTRATION
 
 
 
