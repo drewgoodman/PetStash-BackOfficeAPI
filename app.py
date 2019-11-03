@@ -8,7 +8,6 @@ from functools import wraps
 from dotenv import load_dotenv
 import os
 
-
 import decimal
 import flask.json
 
@@ -20,19 +19,17 @@ class CustomJSONEncoder(flask.json.JSONEncoder):
         return super(CustomJSONEncoder, self).default(obj)
 
 
-
 app = Flask(__name__)
 CORS(app) # allow for cross-site requests from the storefront
 app.json_encoder = CustomJSONEncoder
 
-load_dotenv()
+load_dotenv() # to use local env variables when building
 app.config['MYSQL_HOST'] = os.environ.get('API_HOST')
 app.config['MYSQL_USER'] = os.environ.get('API_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('API_PASSWORD')
 app.config['MYSQL_DB'] = os.environ.get('API_DB')
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 app.config['SECRET_KEY'] = os.environ.get('API_SECRET_KEY')
-
 
 mysql = MySQL(app)
 
@@ -98,14 +95,19 @@ def admin_register():
                             admin_user_employee_id, 
                             admin_user_username, 
                             admin_user_password
-                            ) VALUES(%s, %s, %s, %s, %s)""", (firstname, lastname, employee_id, username, password))
+                            ) VALUES(%s, %s, %s, %s, %s)""",
+                            (firstname, lastname, employee_id, username, password))
         mysql.connection.commit()
-
         result = cur.execute("SELECT * FROM admin_user WHERE admin_user_username = %s", [username])
         data = cur.fetchone()
         admin_id = data['admin_user_id']
         log_message = f"Registered {username} (Employee #{employee_id}) in PetStash Back Office."
-        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, admin_id, username))
+        cur.execute("""INSERT INTO admin_updatelog(
+                        admin_updatelog_log,
+                        admin_updatelog_admin_id, 
+                        admin_updatelog_admin
+                        ) VALUES(%s, %s, %s)""",
+                        (log_message, admin_id, username))
         mysql.connection.commit()
         cur.close()
         flash('You are now registered and can log in', 'success')
@@ -185,7 +187,12 @@ def category_add():
                         (name, display, route, icon_url, banner_url, banner_display, banner_button, banner_caption))
         mysql.connection.commit()
         log_message = f"Created new product category: {name}."
-        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
+        cur.execute("""INSERT INTO admin_updatelog(
+                        admin_updatelog_log, 
+                        admin_updatelog_admin_id, 
+                        admin_updatelog_admin
+                        ) VALUES(%s, %s, %s)""", 
+                        (log_message, session['admin_id'], session['admin_username']))
         mysql.connection.commit()
         cur.close()
         flash("Category Successfully Added", 'success')
@@ -242,14 +249,19 @@ def category_edit(id):
 @app.route("/products")
 def products():
     cur = mysql.connection.cursor()
-    result = cur.execute("""SELECT p.id, p.shop_product_name, p.shop_product_brand, p.shop_product_price, p.shop_product_display, p.shop_product_onhand, c.shop_category_name
+    result = cur.execute("""SELECT p.id,
+                            p.shop_product_name, 
+                            p.shop_product_brand, 
+                            p.shop_product_price, 
+                            p.shop_product_display, 
+                            p.shop_product_onhand, 
+                            c.shop_category_name
                             FROM shop_products p
                             LEFT JOIN shop_categories c
                             ON c.shop_category_id = p.shop_product_category_id
                             ORDER BY """ + PRODUCT_ORDER_DEFAULT)
     products = cur.fetchall()
     return render_template('products.html', products=products)
-
 
 
 class ProductForm(Form):
@@ -311,7 +323,12 @@ def product_add():
                         (name, brand, price, image_url, description, category, display))
         mysql.connection.commit()
         log_message = f"Successfully added new product: {name} by {brand}."
-        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
+        cur.execute("""INSERT INTO admin_updatelog(
+                        admin_updatelog_log, 
+                        admin_updatelog_admin_id, 
+                        admin_updatelog_admin
+                        ) VALUES(%s, %s, %s)""",
+                        (log_message, session['admin_id'], session['admin_username']))
         mysql.connection.commit()
         cur.close()
         flash("Product Successfully Added", 'success')
@@ -357,7 +374,12 @@ def product_edit(id):
         mysql.connection.commit()
 
         log_message = f"Successfully updated product: {name} by {brand}."
-        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
+        cur.execute("""INSERT INTO admin_updatelog(
+                        admin_updatelog_log, 
+                        admin_updatelog_admin_id, 
+                        admin_updatelog_admin
+                        ) VALUES(%s, %s, %s)""", 
+                        (log_message, session['admin_id'], session['admin_username']))
         mysql.connection.commit()
         cur.close()
         flash("Product Successfully Updated", 'success')
@@ -418,7 +440,6 @@ def logout():
     return redirect(url_for('home'))
 
 
-
 # GET ALL CATEGORIES -- Return all categories that are active
 @app.route('/store/get-categories')
 def front_get_all_categories():
@@ -453,6 +474,54 @@ def front_get_products_by_category(route):
 
 
 # TODO: BUILD USER REGISTRATION
+
+
+
+@app.route('/store/register-user', methods=["POST"])
+def front_register_user():
+
+    cur = mysql.connection.cursor() 
+    username = request.json['username']
+    email = request.json['email']
+
+    result = cur.execute("SELECT * FROM shop_users")
+    current_users = cur.fetchall()
+    current_user_list = []
+    current_email_list = []
+    for user in current_users:
+        current_user_list.append(user["user_username"])
+        current_email_list.append(user["user_email"])
+
+    if username in current_user_list:
+        return {
+            "registerSuccess": False,
+            "errorText": "Username already taken. Please try again."
+        }
+    elif email in current_email_list:
+        return {
+            "registerSuccess": False,
+            "errorText": "Email address already taken. Please try again."
+        }
+    else:
+        first_name = request.json['first_name']
+        last_name = request.json['last_name']
+        password = sha256_crypt.hash(str(request.json['password']))
+        cur.execute("""INSERT INTO shop_users(
+                    user_first_name,
+                    user_last_name,
+                    user_username,
+                    user_email,
+                    user_password
+                    ) VALUES(%s, %s, %s, %s, %s)""",
+                    (first_name, last_name, username, email, password))
+        mysql.connection.commit()
+        cur.close()
+        return {
+            "registerSuccess": True
+        }
+
+
+
 
 # TODO: BUILD USER LOGIN
 
