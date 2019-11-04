@@ -520,7 +520,10 @@ def front_register_user():
 @app.route('/store/login-status')
 def front_check_login_status():
     if 'user_logged_in' in session:
-        return { "loginStatus": True }
+        return {
+                "loginStatus": True,
+                "username": session['user_username']
+                }
     else:
         return { "loginStatus": False }
 
@@ -539,7 +542,8 @@ def front_login_user():
             session['user_id'] = user["user_id"]
             session['user_username'] = user["user_username"]
             return {
-                "loginStatus": True
+                "loginStatus": True,
+                "username": session['user_username']
             }
         else:
             return {
@@ -558,6 +562,75 @@ def front_login_user():
 def front_logout_user():
     session.clear()
     return { "logoutSuccessful": True }
+
+# {
+#     product_id: X,
+#     quantity: X
+
+# }
+
+
+@app.route('/store/cart-add', methods=["POST"])
+def front_cart_add_product():
+    user_id = session['user_id']
+    product_id = request.json['product_id']
+    quantity = request.json['quantity']
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * FROM shop_cart WHERE cart_user_id = %s AND cart_product_id = %s", (user_id, product_id))
+    if result > 0:
+        current_item = cur.fetchone()
+        current_quantity = current_item["cart_qty"]
+        new_quantity = quantity + current_quantity
+        cur.execute("""UPDATE shop_cart
+                        SET cart_qty = %s
+                        WHERE cart_user_id = %s AND cart_product_id = %s""", (new_quantity, user_id, product_id))
+        mysql.connection.commit()
+        cur.close()
+        return {
+            "cartChangeSuccess": True,
+            "cartUpdate": True
+        }
+    else:
+        cur.execute("""INSERT INTO shop_cart(
+                    cart_user_id,
+                    cart_product_id,
+                    cart_qty
+                    ) VALUES(%s, %s, %s)""",
+                    (user_id, product_id, quantity))
+        mysql.connection.commit()
+        cur.close()
+        return {
+            "cartChangeSuccess": True,
+            "cartAdd": True
+        }
+        
+
+@app.route('/store/cart-fetch')
+def front_cart_fetch():
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    result = cur.execute("""
+            SELECT c.cart_item_id,
+                p.id AS product_id,
+                p.shop_product_name,
+                p.shop_product_price,
+                p.shop_product_onhand,
+                c.cart_qty 
+                FROM shop_cart c
+                JOIN shop_products p
+                ON c.cart_product_id = p.id
+                WHERE c.cart_user_id = %s;""",[user_id])
+    cart_products = cur.fetchall()
+    cur.close()
+    return jsonify(cart_products)
+
+
+@app.route('/store/cart-modify', methods=["POST"])
+def front_cart_modify_product():
+    user_id = session['user_id']
+    product_id = response.json['product_id']
+    quantity = response.json['quantity']
+
 
 
 
