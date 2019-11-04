@@ -233,10 +233,16 @@ def category_edit(id):
                         shop_category_banner_display = %s,
                         shop_category_banner_button = %s,
                         shop_category_banner_caption = %s
-                        WHERE shop_category_id = %s""", (name, display, route, icon_url, banner_url, banner_display, banner_button, banner_caption, id))
+                        WHERE shop_category_id = %s""",
+                        (name, display, route, icon_url, banner_url, banner_display, banner_button, banner_caption, id))
         mysql.connection.commit()
         log_message = f"Updated product category: {name}."
-        cur.execute("INSERT INTO admin_updatelog(admin_updatelog_log, admin_updatelog_admin_id, admin_updatelog_admin) VALUES(%s, %s, %s)", (log_message, session['admin_id'], session['admin_username']))
+        cur.execute("""INSERT INTO admin_updatelog(
+                        admin_updatelog_log,
+                        admin_updatelog_admin_id, 
+                        admin_updatelog_admin
+                        ) VALUES(%s, %s, %s)""",
+                        (log_message, session['admin_id'], session['admin_username']))
         mysql.connection.commit()
         cur.close()
         flash("Category Successfully Added", 'success')
@@ -609,8 +615,8 @@ def front_cart_add_product():
 @app.route('/store/cart-modify', methods=["POST"])
 def front_cart_modify_product():
     user_id = session['user_id']
-    product_id = response.json['product_id']
-    quantity = response.json['quantity']
+    product_id = request.json['product_id']
+    quantity = request.json['quantity']
     cur = mysql.connection.cursor()
     cur.execute("""UPDATE shop_cart
                     SET cart_qty = %s
@@ -676,6 +682,104 @@ def front_cart_delete(product_id):
         "cartChangeSuccess": True,
         "cartDelete": True
     }
+
+# Grab all information associated with the user account in session
+@app.route('/store/user')
+def front_get_user():
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    result = cur.execute("SELECT * FROM shop_users WHERE user_id = %s",[user_id])
+    user_info = cur.fetchone()
+    cur.close()
+    return user_info
+
+# Update user address
+@app.route('/store/user/address', methods=["POST"])
+def front_user_address_update():
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    address = request.json['address']
+    city = request.json['city']
+    state = request.json['state']
+    zipcode = request.json['zipcode']
+    cur.execute("""UPDATE shop_users
+                    SET user_address = %s,
+                    user_city = %s,
+                    user_state = %s,
+                    user_zip = %s
+                    WHERE user_id = %s""", (address, city, state, zipcode, user_id))
+    mysql.connection.commit()
+    cur.close()
+    return {
+        "addressChangeSuccess": True
+    }
+
+
+
+# TODO: Add new transaction
+
+# {
+#     shipping: {
+#         city: sdsdf
+#         zipcode: asrsf
+#     }
+#     products: [{
+#         product_id:
+#         product_price:
+#         product_qty:
+#     },]
+# }
+
+
+@app.route('/store/transaction/create', methods=["POST"])
+def front_transaction_create():
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    product_list = request.json['products']
+    shipping_info = request.json['shipping']
+
+    address = shipping_info["address"]
+    city = shipping_info["city"]
+    state = shipping_info['state']
+    zipcode = shipping_info['zipcode']
+
+    transaction_cost = 0
+    for product in product_list:
+        transaction_cost += product['product_price'] * product['product_qty']
+
+    result = cur.execute("""INSERT INTO shop_transaction(
+                                transaction_user_id,
+                                transaction_cost,
+                                transaction_city,
+                                transaction_zipcode,
+                                transaction_state,
+                                transaction_address
+                                ) VALUES(%s, %s, %s, %s, %s, %s)""",
+                                (user_id, transaction_cost, city, zipcode, state, address))
+    mysql.connection.commit()
+
+    result = cur.execute("SELECT transaction_id from shop_transaction WHERE transaction_user_id = %s ORDER BY transaction_date DESC",[user_id])
+    transaction_created = cur.fetchone()
+    transaction_id = transaction_created["transaction_id"]
+    for product in product_list:
+        product_id = product['product_id']
+        product_qty = product['product_qty']
+        result =  cur.execute("""INSERT INTO shop_trans_item(
+                    trans_item_product_id,
+                    trans_item_transaction_id,
+                    trans_item_qty
+                    ) VALUES(%s, %s, %s)""",
+                    (product_id, transaction_id, product_qty))
+        mysql.connection.commit()
+    mysql.connection.commit()
+    cur.close()
+    return {
+        "transactionSuccess": True
+    }
+
+
+
+# TODO: Get all transactions for user in session
 
 
 
