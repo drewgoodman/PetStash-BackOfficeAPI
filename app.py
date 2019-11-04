@@ -730,7 +730,7 @@ def front_user_address_update():
 #     },]
 # }
 
-
+# Create transaction -- passes in the shipping info and products list -- generates a transaction summary and transaction product items associated with it
 @app.route('/store/transaction/create', methods=["POST"])
 def front_transaction_create():
     cur = mysql.connection.cursor()
@@ -779,7 +779,41 @@ def front_transaction_create():
 
 
 
-# TODO: Get all transactions for user in session
+# Get all transactions for user in session
+@app.route('/store/transaction/get/<string:trans_id>')
+def front_get_transaction_by_id(trans_id):
+    cur = mysql.connection.cursor()
+    result = cur.execute("SELECT * from shop_transaction WHERE transaction_id = %s",[trans_id])
+    transaction = cur.fetchone()
+    cur.close()
+    return transaction
+
+
+# Get all transactions for user in session
+@app.route('/store/transactions')
+def front_get_transactions_by_user():
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    result = cur.execute("SELECT * from shop_transaction WHERE transaction_user_id = %s",[user_id])
+    transactions = cur.fetchall()
+    cur.close()
+    return jsonify(transactions)
+
+
+# Get transaction items from transaction id
+@app.route('/store/transaction/items/<string:trans_id>')
+def front_get_trans_items_by_id(trans_id):
+    cur = mysql.connection.cursor()
+    result = cur.execute("""
+                SELECT p.id, p.shop_product_name, t.trans_item_qty, p.shop_product_price
+                FROM shop_trans_item t
+                JOIN shop_products p
+                ON p.id = t.trans_item_product_id
+                WHERE t.trans_item_transaction_id = %s""",[trans_id])
+    trans_items = cur.fetchall()
+    cur.close()
+    return jsonify(trans_items)
+
 
 
 
