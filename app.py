@@ -569,7 +569,7 @@ def front_logout_user():
 
 # }
 
-
+# Will either create a new cart item for the user, or will detect a cart item with the same product value and increase the quantity by the specified amount
 @app.route('/store/cart-add', methods=["POST"])
 def front_cart_add_product():
     user_id = session['user_id']
@@ -603,8 +603,27 @@ def front_cart_add_product():
             "cartChangeSuccess": True,
             "cartAdd": True
         }
-        
 
+
+#Modify the quantity value of a cart item instead of increasing it
+@app.route('/store/cart-modify', methods=["POST"])
+def front_cart_modify_product():
+    user_id = session['user_id']
+    product_id = response.json['product_id']
+    quantity = response.json['quantity']
+    cur = mysql.connection.cursor()
+    cur.execute("""UPDATE shop_cart
+                    SET cart_qty = %s
+                    WHERE cart_user_id = %s AND cart_product_id = %s""", (quantity, user_id, product_id))
+    mysql.connection.commit()
+    cur.close()
+    return {
+        "cartChangeSuccess": True,
+        "cartUpdate": True
+    }
+
+
+# Grab all cart items relevant to the user in session
 @app.route('/store/cart-fetch')
 def front_cart_fetch():
     cur = mysql.connection.cursor()
@@ -625,11 +644,40 @@ def front_cart_fetch():
     return jsonify(cart_products)
 
 
-@app.route('/store/cart-modify', methods=["POST"])
-def front_cart_modify_product():
+# Delete all cart items associated with the user
+@app.route('/store/cart-delete-all',methods=["DELETE"])
+def front_cart_delete_all():
+    cur = mysql.connection.cursor()
     user_id = session['user_id']
-    product_id = response.json['product_id']
-    quantity = response.json['quantity']
+    result = cur.execute("""
+        DELETE FROM shop_cart
+        WHERE cart_user_id = %s;
+    """, [user_id])
+    mysql.connection.commit()
+    cur.close()
+    return {
+        "cartChangeSuccess": True,
+        "cartDelete": True
+    }
+
+
+# Delete only the user's cart item with the given product ID.
+@app.route('/store/cart-delete/<string:product_id>',methods=["DELETE"])
+def front_cart_delete(product_id):
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    result = cur.execute("""
+        DELETE FROM shop_cart
+        WHERE cart_user_id = %s AND cart_product_id = %s;
+    """, (user_id, product_id))
+    mysql.connection.commit()
+    cur.close()
+    return {
+        "cartChangeSuccess": True,
+        "cartDelete": True
+    }
+
+
 
 
 
