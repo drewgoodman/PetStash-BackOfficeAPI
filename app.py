@@ -786,8 +786,7 @@ def front_transaction_create():
 def front_get_transaction_by_id(trans_id):
     cur = mysql.connection.cursor()
     result = cur.execute("""SELECT * from shop_transaction
-                            WHERE transaction_id = %s
-                            ORDER BY transaction_date DESC""",[trans_id])
+                            WHERE transaction_id = %s""",[trans_id])
     transaction = cur.fetchone()
     cur.close()
     return transaction
@@ -798,7 +797,9 @@ def front_get_transaction_by_id(trans_id):
 def front_get_transactions_by_user():
     cur = mysql.connection.cursor()
     user_id = session['user_id']
-    result = cur.execute("SELECT * from shop_transaction WHERE transaction_user_id = %s",[user_id])
+    result = cur.execute("""SELECT * from shop_transaction
+                            WHERE transaction_user_id = %s
+                            ORDER BY transaction_date DESC""",[user_id])
     transactions = cur.fetchall()
     cur.close()
     return jsonify(transactions)
