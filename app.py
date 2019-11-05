@@ -473,7 +473,9 @@ def front_get_products_by_category(route):
     result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s",[route])
     category = cur.fetchone()
     category_id = category["shop_category_id"]
-    result = cur.execute("SELECT * FROM shop_products WHERE shop_product_display = 1 AND shop_product_category_id = %s",[category_id])
+    result = cur.execute("""SELECT * FROM shop_products
+                            WHERE shop_product_display = 1
+                            AND shop_product_category_id = %s""",[category_id])
     products = cur.fetchall()
     cur.close()
     return jsonify(products)
@@ -783,7 +785,9 @@ def front_transaction_create():
 @app.route('/store/transaction/get/<string:trans_id>')
 def front_get_transaction_by_id(trans_id):
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * from shop_transaction WHERE transaction_id = %s",[trans_id])
+    result = cur.execute("""SELECT * from shop_transaction
+                            WHERE transaction_id = %s
+                            ORDER BY transaction_date DESC""",[trans_id])
     transaction = cur.fetchone()
     cur.close()
     return transaction
