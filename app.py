@@ -781,7 +781,7 @@ def front_transaction_create():
 
 
 
-# Get all transactions for user in session
+# A single transaction by id
 @app.route('/store/transaction/get/<string:trans_id>')
 def front_get_transaction_by_id(trans_id):
     cur = mysql.connection.cursor()
@@ -819,19 +819,7 @@ def front_get_trans_items_by_id(trans_id):
     cur.close()
     return jsonify(trans_items)
 
-
-
-
-
-
-
 # TODO: CHECK ANY DECIMAL DATA --- IT MAY NEED TO BE SENT BACK AS A STRING AND CONVERTED INTO A DECIMAL AFTERWARDS. CANNOT USE AS JSON DATA, ENCODER OVERRIDE HOPEFULLY FIXES THIS.
-
-
-
-
-
-
 
 if __name__ == "__main__":
     app.run(debug=True)
