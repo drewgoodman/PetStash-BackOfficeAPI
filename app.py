@@ -470,12 +470,13 @@ def front_get_all_products():
 @app.route('/store/get-products/<string:route>')
 def front_get_products_by_category(route):
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s ORDER BY shop_product_price",[route])
+    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s",[route])
     category = cur.fetchone()
     category_id = category["shop_category_id"]
     result = cur.execute("""SELECT * FROM shop_products
                             WHERE shop_product_display = 1
-                            AND shop_product_category_id = %s""",[category_id])
+                            AND shop_product_category_id = %s
+                            ORDER BY shop_product_price""",[category_id])
     products = cur.fetchall()
     cur.close()
     return jsonify(products)
