@@ -456,11 +456,11 @@ def front_get_all_categories():
     return jsonify(categories)
 
 
-# GET ALL PRODUCTS -- Return all products that are active
+# GET ALL PRODUCTS -- Return all products that are active, sort from least to most expensive
 @app.route('/store/get-products')
 def front_get_all_products():
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * FROM shop_products WHERE shop_product_display = 1")
+    result = cur.execute("SELECT * FROM shop_products WHERE shop_product_display = 1 ORDER BY shop_product_price")
     products = cur.fetchall()
     cur.close()
     return jsonify(products)
@@ -470,7 +470,7 @@ def front_get_all_products():
 @app.route('/store/get-products/<string:route>')
 def front_get_products_by_category(route):
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s",[route])
+    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s ORDER BY shop_product_price",[route])
     category = cur.fetchone()
     category_id = category["shop_category_id"]
     result = cur.execute("""SELECT * FROM shop_products
