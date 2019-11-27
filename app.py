@@ -466,6 +466,23 @@ def front_get_all_products():
     return jsonify(products)
 
 
+# GET ALL PRODUCTS WITH USER CART -- Return all products that are active, and with all cart item quantities for the user in session
+@app.route('/store/get-products/user')
+def front_get_all_products_with_cart():
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    result = cur.execute("""SELECT p.*, IFNULL(c.cart_qty, 0) as product_cart_qty
+                            FROM shop_products p
+                            LEFT JOIN shop_cart c
+                            ON c.cart_product_id = p.id
+                            AND c.cart_user_id = %s
+                            WHERE p.shop_product_display = 1
+                            ORDER BY shop_product_price""",(user_id))
+    products = cur.fetchall()
+    cur.close()
+    return jsonify(products)
+
+
 # GET PRODUCTS BY CATEGORY  -- Returns all products in the category that are active, using the category URL route -- category assumed active already
 @app.route('/store/get-products/<string:route>')
 def front_get_products_by_category(route):
