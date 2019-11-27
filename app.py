@@ -482,6 +482,26 @@ def front_get_products_by_category(route):
     return jsonify(products)
 
 
+# GET PRODUCTS BY CATEGORY WITH USER CART  -- Same as above, except it also grabs the amount of each product the current session user has in their cart.
+@app.route('/store/get-products/user/<string:route>')
+def front_get_products_by_category_with_cart(route):
+    cur = mysql.connection.cursor()
+    user_id = session['user_id']
+    result = cur.execute("SELECT * FROM shop_categories WHERE shop_category_route = %s",[route])
+    category = cur.fetchone()
+    category_id = category["shop_category_id"]
+    result = cur.execute("""SELECT p.*, IFNULL(c.cart_qty, 0) as product_cart_qty
+                            FROM shop_products p
+                            LEFT JOIN shop_cart c
+                            ON c.cart_product_id = p.id
+                            AND c.cart_user_id = %s
+                            WHERE p.shop_product_display = 1
+                            AND p.shop_product_category_id = %s
+                            ORDER BY shop_product_price""",(user_id,category_id))
+    products = cur.fetchall()
+    cur.close()
+    return jsonify(products)
+
 
 @app.route('/store/register-user', methods=["POST"])
 def front_register_user():
