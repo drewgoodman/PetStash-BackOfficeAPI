@@ -50,7 +50,7 @@ def is_admin_logged_in(f):
 @app.route('/')
 def home():
     cur = mysql.connection.cursor()
-    result = cur.execute("SELECT * FROM admin_updatelog")
+    result = cur.execute("SELECT * FROM admin_updatelog ORDER BY admin_updatelog_timestamp DESC")
     updates = cur.fetchall()
     return render_template('home.html', updates=updates)
     cur.close()
@@ -60,7 +60,7 @@ class AdminRegisterForm(Form):
     valid_id = ['123456','654321']
     firstname = StringField('First Name', [validators.Length(min=1, max=45)])
     lastname = StringField('Last Name', [validators.Length(min=1, max=45)])
-    employee_id = StringField('Employee ID', [validators.AnyOf(valid_id, message="Must use a valid employee ID")])
+    employee_id = StringField('Employee ID', [validators.AnyOf(valid_id, message="Must use a valid employee ID (DEBUG: input either 123456 or 654321)")])
     username = StringField('Username', [validators.Length(min=4, max=25)])
     password = PasswordField('Password', [
         validators.DataRequired(),
@@ -863,4 +863,4 @@ def front_get_trans_items_by_id(trans_id):
 # TODO: CHECK ANY DECIMAL DATA --- IT MAY NEED TO BE SENT BACK AS A STRING AND CONVERTED INTO A DECIMAL AFTERWARDS. CANNOT USE AS JSON DATA, ENCODER OVERRIDE HOPEFULLY FIXES THIS.
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
